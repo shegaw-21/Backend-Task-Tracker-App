@@ -1,40 +1,57 @@
 // backend/server.js
 const express = require('express');
+const app = express();
 const cors = require('cors');
-require('dotenv').config(); // For environment variables
+require('dotenv').config(); // Load environment variables from .env file
 
 // Import the database connection pool
 const pool = require('./config/db');
 
-// Import task controller functions
+// Import controller functions
 const { getTasks, addTask, deleteTask, updateTask } = require('./controllers/taskController');
+const { registerUser, loginUser } = require('./controllers/authController');
 
-// Import new authentication controller functions
-const { register, login } = require('./controllers/authController');
+// NEW: Import auth middleware
+const { protect } = require('./middleware/authMiddleware');
 
-// Import authentication middleware
-const protect = require('./middleware/authMiddleware'); // Import the new middleware
+// Define the port for the server, using environment variable or default to 3001
+const port = process.env.PORT || 3001;
 
-const app = express();
-const port = process.env.PORT || 3001; // Backend will run on port 3001
+// Configure CORS to allow requests from your frontend.
+const corsOptions = {
+    origin: 'https://frontend-task-tracker-app-nbkxf.vercel.app', // Your specific Vercel frontend URL
+    optionsSuccessStatus: 200
+};
+app.use(cors(corsOptions));
 
-// Middleware
-app.use(cors()); // Enable CORS for all origins
-app.use(express.json()); // Enable JSON body parsing for incoming requests
+// Middleware to parse JSON bodies from incoming requests
+app.use(express.json());
 
-// --- Authentication Routes (Public) ---
-app.post('/auth/register', register); // Endpoint for user registration
-app.post('/auth/login', login); // Endpoint for user login
+// Test Database Connection on server startup
+pool.getConnection()
+    .then(connection => {
+        console.log('Successfully connected to MySQL database!');
+        connection.release();
+    })
+    .catch(err => {
+        console.error('Error connecting to MySQL:', err.message);
+        process.exit(1);
+    });
 
-// --- Task API Routes (Protected) ---
-// All routes below this line will require a valid JWT token
-// The 'protect' middleware will run before the task controller functions
+// --- API Routes ---
+
+// Authentication Routes (no protection needed here)
+app.post('/auth/register', registerUser);
+app.post('/auth/login', loginUser);
+
+// Task Management Routes - PROTECTED by auth middleware
+// All routes below this middleware will require a valid JWT token
 app.get('/tasks', protect, getTasks);
 app.post('/tasks', protect, addTask);
 app.delete('/tasks/:id', protect, deleteTask);
 app.put('/tasks/:id', protect, updateTask);
 
-// Start the server
+// Start the Express server
 app.listen(port, () => {
     console.log(`Backend server running on http://localhost:${port}`);
 });

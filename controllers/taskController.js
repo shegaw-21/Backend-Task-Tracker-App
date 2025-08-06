@@ -1,12 +1,12 @@
 // backend/controllers/taskController.js
-const pool = require('../config/db'); // Import the database connection pool
+const pool = require('../config/db');
 
-// --- Get All Tasks for the Authenticated User ---
+// Get all tasks for the authenticated user
 const getTasks = async(req, res) => {
-    // req.user is set by the protect middleware, containing the authenticated user's ID
-    const userId = req.user.id;
-
+    // req.user will contain the user ID from the JWT token (set by auth middleware)
+    const userId = req.user;
     try {
+        // Fetch tasks only for the logged-in user
         const [rows] = await pool.query('SELECT * FROM tasks WHERE user_id = ? ORDER BY created_at DESC', [userId]);
         res.json(rows);
     } catch (error) {
@@ -15,17 +15,17 @@ const getTasks = async(req, res) => {
     }
 };
 
-// --- Add a New Task for the Authenticated User ---
+// Add a new task for the authenticated user
 const addTask = async(req, res) => {
     const { title, description } = req.body;
-    const userId = req.user.id; // Get user ID from authenticated request
+    const userId = req.user; // Get user ID from authenticated request
 
-    if (!title) {
+    if (!title || title.trim() === '') {
         return res.status(400).json({ message: 'Task title is required' });
     }
     try {
         const [result] = await pool.query(
-            'INSERT INTO tasks (title, description, completed, user_id) VALUES (?, ?, ?, ?)', [title, description, false, userId] // Now inserting with user_id
+            'INSERT INTO tasks (title, description, completed, user_id) VALUES (?, ?, ?, ?)', [title, description, false, userId] // Include user_id
         );
         res.status(201).json({ id: result.insertId, title, description, completed: false, user_id: userId });
     } catch (error) {
@@ -34,52 +34,49 @@ const addTask = async(req, res) => {
     }
 };
 
-// --- Delete a Task for the Authenticated User ---
+// Delete a task for the authenticated user
 const deleteTask = async(req, res) => {
     const { id } = req.params;
-    const userId = req.user.id; // Get user ID from authenticated request
+    const userId = req.user; // Get user ID from authenticated request
 
     try {
-        // Ensure the task belongs to the authenticated user before deleting
+        // Delete task only if it belongs to the authenticated user
         const [result] = await pool.query('DELETE FROM tasks WHERE id = ? AND user_id = ?', [id, userId]);
         if (result.affectedRows === 0) {
-            // Return 404 if task not found OR if it doesn't belong to the user
-            return res.status(404).json({ message: 'Task not found or unauthorized' });
+            return res.status(404).json({ message: 'Task not found or not authorized' });
         }
-        res.status(204).send(); // 204 No Content for successful deletion
+        res.status(204).send();
     } catch (error) {
         console.error('Error deleting task:', error);
         res.status(500).json({ message: 'Error deleting task', error: error.message });
     }
 };
 
-// --- Update a Task for the Authenticated User ---
+// Update a task for the authenticated user
 const updateTask = async(req, res) => {
     const { id } = req.params;
     const { title, description, completed } = req.body;
-    const userId = req.user.id; // Get user ID from authenticated request
+    const userId = req.user; // Get user ID from authenticated request
 
     try {
-        // Fetch current task to ensure it exists AND belongs to the user
+        // Fetch existing task ensuring it belongs to the authenticated user
         const [existingTasks] = await pool.query('SELECT * FROM tasks WHERE id = ? AND user_id = ?', [id, userId]);
         if (existingTasks.length === 0) {
-            return res.status(404).json({ message: 'Task not found or unauthorized' });
+            return res.status(404).json({ message: 'Task not found or not authorized' });
         }
         const existingTask = existingTasks[0];
 
-        // Use provided values or fallback to existing ones
         const updatedTitle = title !== undefined ? title : existingTask.title;
         const updatedDescription = description !== undefined ? description : existingTask.description;
         const updatedCompleted = completed !== undefined ? completed : existingTask.completed;
 
         const [result] = await pool.query(
-            'UPDATE tasks SET title = ?, description = ?, completed = ? WHERE id = ? AND user_id = ?', [updatedTitle, updatedDescription, updatedCompleted, id, userId]
+            'UPDATE tasks SET title = ?, description = ?, completed = ? WHERE id = ? AND user_id = ?', [updatedTitle, updatedDescription, updatedCompleted, id, userId] // Include user_id in WHERE clause
         );
 
         if (result.affectedRows === 0) {
             return res.status(500).json({ message: 'Failed to update task' });
         }
-        // Respond with the updated task data
         res.json({ id: parseInt(id), title: updatedTitle, description: updatedDescription, completed: updatedCompleted, user_id: userId });
     } catch (error) {
         console.error('Error updating task:', error);
