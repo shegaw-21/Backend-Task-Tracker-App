@@ -10,12 +10,10 @@ const pool = require('./config/db');
 const { getTasks, addTask, deleteTask, updateTask } = require('./controllers/taskController');
 
 // Import new authentication controller functions
-// CORRECTED: Destructure register and login from the imported object
 const { register, login } = require('./controllers/authController');
 
 // Import authentication middleware
-// CORRECTED: Import protect directly as it's the default export from authMiddleware.js
-const protect = require('./middleware/authMiddleware');
+const protect = require('./middleware/authMiddleware'); // Correct: Imports the function directly
 
 const app = express();
 const port = process.env.PORT || 3001; // Backend will run on port 3001
@@ -36,6 +34,14 @@ app.use(express.json()); // Enable JSON body parsing for incoming requests
 // --- Authentication Routes (Public) ---
 app.post('/auth/register', register); // Endpoint for user registration
 app.post('/auth/login', login); // Endpoint for user login
+
+// --- Debugging console logs ---
+console.log('Type of protect (before tasks routes):', typeof protect);
+console.log('Type of getTasks (before tasks routes):', typeof getTasks);
+console.log('Type of addTask (before tasks routes):', typeof addTask);
+console.log('Type of deleteTask (before tasks routes):', typeof deleteTask);
+console.log('Type of updateTask (before tasks routes):', typeof updateTask);
+
 
 // --- Task API Routes (Protected) ---
 // All routes below this line will require a valid JWT token
