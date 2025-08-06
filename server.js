@@ -19,7 +19,7 @@ const port = process.env.PORT || 3001;
 
 // Configure CORS to allow requests from your frontend.
 const corsOptions = {
-    origin: 'https://frontend-task-tracker-app-.vercel.app/', 
+    origin: 'https://frontend-task-tracker-app-dmnm.vercel.app/', 
     optionsSuccessStatus: 200
 };
 app.use(cors(corsOptions));
